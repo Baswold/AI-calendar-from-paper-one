@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CALENDAR APP TEST</title>
+    <style>
+        body { 
+            font-family: Arial; 
+            text-align: center; 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            color: white; 
+            padding: 50px; 
+        }
+        h1 { font-size: 3em; }
+        .box { 
+            background: rgba(255,255,255,0.1); 
+            padding: 30px; 
+            border-radius: 10px; 
+            margin: 20px; 
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 CALENDAR APP IS WORKING! 🎉</h1>
+    <div class="box">
+        <h2>✅ SUCCESS!</h2>
+        <p>If you can see this page, the files are accessible and the server is working!</p>
+        <p><strong>Next step:</strong> The main app should be at <a href="index.html" style="color: yellow;">index.html</a></p>
+    </div>
+    <div class="box">
+        <h3>📊 File Test Status:</h3>
+        <p id="status">Testing files...</p>
+    </div>
+    
+    <script>
+        // Test if other files are accessible
+        fetch('styles.css')
+            .then(response => response.ok ? 'CSS ✅' : 'CSS ❌')
+            .then(cssStatus => {
+                return fetch('script.js')
+                    .then(response => response.ok ? cssStatus + ' | JS ✅' : cssStatus + ' | JS ❌');
+            })
+            .then(status => {
+                document.getElementById('status').innerHTML = status;
+            })
+            .catch(e => {
+                document.getElementById('status').innerHTML = 'File access test failed: ' + e.message;
+            });
+    </script>
+</body>
+</html>

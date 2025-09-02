@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Photo Converter</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-calendar-alt"></i> Calendar Photo Converter</h1>
+            <p>Upload photos of calendars to extract events and add them to Google Calendar</p>
+        </header>
+
+        <!-- Status Messages -->
+        <div id="statusMessage" class="status-message hidden"></div>
+
+        <!-- Upload Section -->
+        <section id="uploadSection" class="section">
+            <h2>Upload Calendar Photos</h2>
+            <div class="upload-area" id="uploadArea">
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                <p>Drag and drop images here, or <span class="browse-link">browse files</span></p>
+                <input type="file" id="fileInput" accept="image/*" multiple hidden>
+            </div>
+            <div id="fileList" class="file-list"></div>
+            <button id="processButton" class="btn btn-primary" disabled>
+                <i class="fas fa-cogs"></i> Process Images
+            </button>
+        </section>
+
+        <!-- Processing Section -->
+        <section id="processingSection" class="section hidden">
+            <h2>Processing Images</h2>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p id="progressText">Analyzing images...</p>
+            </div>
+        </section>
+
+        <!-- Events Review Section -->
+        <section id="eventsSection" class="section hidden">
+            <h2>Extracted Events</h2>
+            <div class="events-controls">
+                <button id="selectAllButton" class="btn btn-secondary">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+                <button id="deselectAllButton" class="btn btn-secondary">
+                    <i class="far fa-square"></i> Deselect All
+                </button>
+                <button id="addToCalendarButton" class="btn btn-success" disabled>
+                    <i class="fab fa-google"></i> Add to Google Calendar
+                </button>
+            </div>
+            <div id="eventsTable" class="events-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllCheckbox"></th>
+                            <th>Event Title</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Description</th>
+                            <th>Source Image</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventsTableBody">
+                        <!-- Events will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Google OAuth Section -->
+        <section id="oauthSection" class="section hidden">
+            <h2>Google Calendar Authorization</h2>
+            <p>Please authorize access to your Google Calendar to add events.</p>
+            <button id="authorizeButton" class="btn btn-primary">
+                <i class="fab fa-google"></i> Authorize Google Calendar
+            </button>
+        </section>
+
+        <!-- Success Section -->
+        <section id="successSection" class="section hidden">
+            <h2>Success!</h2>
+            <div class="success-message">
+                <i class="fas fa-check-circle"></i>
+                <p>Events have been successfully added to your Google Calendar!</p>
+                <button id="startOverButton" class="btn btn-primary">
+                    <i class="fas fa-redo"></i> Process More Images
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

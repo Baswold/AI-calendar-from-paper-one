@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📅 Calendar Photo Converter - Direct Access</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .section {
+            padding: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover {
+            border-color: #4f46e5;
+            background-color: #f8fafc;
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .hidden { display: none; }
+        
+        .alert {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        
+        .alert.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-color: #93c5fd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📅 Calendar Photo Converter</h1>
+            <p>Upload a photo of your paper calendar and convert events to Google Calendar</p>
+        </header>
+
+        <div class="section">
+            <div class="alert info">
+                <strong>🔧 Server Troubleshooting Mode</strong><br>
+                This is a direct file access version. For full functionality, please start the server.
+            </div>
+            
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📷</div>
+                <h3>Drop your calendar photo here</h3>
+                <p>or click to browse</p>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+            
+            <button class="btn" onclick="analyzeCalendar()">Analyze Calendar</button>
+            
+            <div id="result" class="alert hidden">
+                <h3>📋 Server Setup Instructions</h3>
+                <p>To analyze calendar images, you need to start the backend server first:</p>
+                <ol style="margin: 15px 0; padding-left: 20px;">
+                    <li>Open Terminal</li>
+                    <li>Run: <code>cd /Users/basil_jackson/Documents/calender_app</code></li>
+                    <li>Run: <code>python3 debug-server.py</code></li>
+                    <li>Open the URL it provides</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function analyzeCalendar() {
+            document.getElementById('result').classList.remove('hidden');
+        }
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                document.querySelector('.upload-area h3').textContent = `Selected: ${file.name}`;
+                document.querySelector('.btn').disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

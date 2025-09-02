@@ -1,0 +1,14 @@
+{
+  "name": "calendar-photo-converter",
+  "version": "1.0.0",
+  "description": "Convert paper calendar photos to Google Calendar events using Claude AI",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "install-deps": "cd backend && npm install"
+  },
+  "keywords": ["calendar", "ai", "claude", "google-calendar", "ocr"],
+  "author": "",
+  "license": "MIT"
+}

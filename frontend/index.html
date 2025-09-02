@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Photo to Google Calendar</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📅 Calendar Photo Converter</h1>
+            <p>Upload a photo of your paper calendar and convert events to Google Calendar</p>
+        </header>
+
+        <div id="upload-section" class="section">
+            <div class="upload-area" id="upload-area">
+                <div class="upload-content">
+                    <div class="upload-icon">📷</div>
+                    <h3>Drop your calendar photo here</h3>
+                    <p>or click to browse</p>
+                    <input type="file" id="file-input" accept="image/*">
+                </div>
+            </div>
+            <button id="analyze-btn" class="btn primary" disabled>Analyze Calendar</button>
+        </div>
+
+        <div id="auth-section" class="section hidden">
+            <h2>Google Calendar Authentication</h2>
+            <p>To create events in your Google Calendar, please authenticate:</p>
+            <button id="auth-btn" class="btn secondary">Connect Google Calendar</button>
+            <div id="auth-status" class="status-message"></div>
+        </div>
+
+        <div id="events-section" class="section hidden">
+            <h2>Extracted Events</h2>
+            <p>Review and edit the events before adding them to your calendar:</p>
+            <div id="events-container"></div>
+            <div class="actions">
+                <button id="create-events-btn" class="btn primary">Add to Google Calendar</button>
+                <button id="cancel-btn" class="btn secondary">Cancel</button>
+            </div>
+        </div>
+
+        <div id="results-section" class="section hidden">
+            <h2>Results</h2>
+            <div id="results-container"></div>
+            <button id="start-over-btn" class="btn secondary">Start Over</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p id="loading-message">Analyzing your calendar...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
