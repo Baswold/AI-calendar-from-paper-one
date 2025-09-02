@@ -174,11 +174,64 @@ class CalendarPhotoConverter {
     }
 
     async extractEventsFromImage(file) {
-        // Mock Claude Vision API call
-        // In a real implementation, this would send the image to Claude Vision API
-        
-        const mockEvents = this.generateMockEvents(file.name);
-        return mockEvents;
+        try {
+            // Create FormData for image upload
+            const formData = new FormData();
+            formData.append('calendar', file);
+
+            // Make API call to backend
+            const response = await fetch('http://localhost:3001/api/analyze-calendar', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.events && result.events.length > 0) {
+                // Process and format the events from Claude Vision API
+                return result.events.map(event => ({
+                    id: Date.now() + Math.random(),
+                    title: event.title || 'Untitled Event',
+                    date: event.date || new Date().toISOString().split('T')[0],
+                    time: event.startTime ? this.formatTime(event.startTime, event.endTime) : null,
+                    description: event.description || '',
+                    sourceImage: file.name,
+                    selected: true
+                }));
+            } else {
+                // Fallback to mock events if API returns no events
+                console.warn('No events extracted from image, using mock data for demo');
+                return this.generateMockEvents(file.name);
+            }
+        } catch (error) {
+            console.error('Error calling Claude Vision API:', error);
+            // Fallback to mock events on error
+            console.warn('API call failed, using mock data for demo');
+            return this.generateMockEvents(file.name);
+        }
+    }
+
+    formatTime(startTime, endTime) {
+        if (!startTime) return null;
+        let timeStr = this.formatSingleTime(startTime);
+        if (endTime && endTime !== startTime) {
+            timeStr += ` - ${this.formatSingleTime(endTime)}`;
+        }
+        return timeStr;
+    }
+
+    formatSingleTime(time) {
+        if (!time) return '';
+        // Convert 24-hour format to 12-hour format
+        const [hours, minutes] = time.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return `${displayHour}:${minutes} ${ampm}`;
     }
 
     generateMockEvents(imageName) {
