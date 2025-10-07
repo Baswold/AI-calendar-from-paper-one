@@ -1,9 +1,22 @@
-const API_BASE = window.location.origin;
+const DEFAULT_SETTINGS = {
+    apiBase: window.location.origin,
+    analyzeApiKey: '',
+    googleClientId: '',
+    googleClientSecret: '',
+    googleApiKey: '',
+    extraHeaders: {}
+};
+
+let settings = loadSettings();
+let apiBase = resolveApiBase(settings.apiBase);
 
 // State
 let selectedFile = null;
 let extractedEvents = [];
 let accessToken = null;
+let googleAuthPopup = null;
+let googleAuthInterval = null;
+let googleMessageListenerRegistered = false;
 
 // DOM Elements
 const uploadArea = document.getElementById('upload-area');
@@ -21,11 +34,20 @@ const resultsContainer = document.getElementById('results-container');
 const startOverBtn = document.getElementById('start-over-btn');
 const loading = document.getElementById('loading');
 const loadingMessage = document.getElementById('loading-message');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const settingsOverlay = document.getElementById('settings-overlay');
+const settingsCloseBtn = document.getElementById('settings-close-btn');
+const settingsForm = document.getElementById('settings-form');
+const settingsResetBtn = document.getElementById('settings-reset-btn');
+const settingsCancelBtn = document.getElementById('settings-cancel-btn');
+const apiBaseDisplay = document.getElementById('api-base-display');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     checkAuthStatus();
+    applySettingsToUI();
 });
 
 function setupEventListeners() {
@@ -35,13 +57,204 @@ function setupEventListeners() {
     uploadArea.addEventListener('dragleave', handleDragLeave);
     uploadArea.addEventListener('drop', handleDrop);
     fileInput.addEventListener('change', handleFileSelect);
-    
+
     // Buttons
     analyzeBtn.addEventListener('click', analyzeCalendar);
     authBtn.addEventListener('click', authenticateGoogle);
     createEventsBtn.addEventListener('click', createGoogleCalendarEvents);
     cancelBtn.addEventListener('click', cancelEventCreation);
     startOverBtn.addEventListener('click', startOver);
+
+    // Settings modal
+    if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+    if (settingsOverlay) settingsOverlay.addEventListener('click', closeSettings);
+    if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', closeSettings);
+    if (settingsCancelBtn) settingsCancelBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        closeSettings();
+        populateSettingsForm();
+    });
+    if (settingsResetBtn) settingsResetBtn.addEventListener('click', resetSettingsToDefault);
+    if (settingsForm) settingsForm.addEventListener('submit', handleSettingsSubmit);
+}
+
+function loadSettings() {
+    try {
+        const stored = localStorage.getItem('calendar-photo-settings');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            return {
+                ...DEFAULT_SETTINGS,
+                ...parsed,
+                extraHeaders: parsed.extraHeaders || {}
+            };
+        }
+    } catch (error) {
+        console.warn('Failed to load saved settings, using defaults.', error);
+    }
+    return { ...DEFAULT_SETTINGS };
+}
+
+function saveSettings() {
+    try {
+        localStorage.setItem('calendar-photo-settings', JSON.stringify(settings));
+    } catch (error) {
+        console.warn('Unable to persist settings', error);
+    }
+}
+
+function resolveApiBase(value) {
+    if (!value) return window.location.origin;
+    try {
+        const url = new URL(value, window.location.origin);
+        return url.origin + url.pathname.replace(/\/$/, '');
+    } catch (error) {
+        console.warn('Invalid API base, falling back to current origin', error);
+        return window.location.origin;
+    }
+}
+
+function applySettingsToUI() {
+    apiBase = resolveApiBase(settings.apiBase);
+    updateApiBaseDisplay();
+    populateSettingsForm();
+}
+
+function updateApiBaseDisplay() {
+    if (!apiBaseDisplay) return;
+    apiBaseDisplay.textContent = apiBase;
+}
+
+function populateSettingsForm() {
+    if (!settingsForm) return;
+    settingsForm.elements.apiBase.value = settings.apiBase || '';
+    settingsForm.elements.analyzeApiKey.value = settings.analyzeApiKey || '';
+    settingsForm.elements.googleClientId.value = settings.googleClientId || '';
+    settingsForm.elements.googleClientSecret.value = settings.googleClientSecret || '';
+    settingsForm.elements.googleApiKey.value = settings.googleApiKey || '';
+    const extraHeaders = settings.extraHeaders && Object.keys(settings.extraHeaders).length
+        ? JSON.stringify(settings.extraHeaders, null, 2)
+        : '';
+    settingsForm.elements.extraHeaders.value = extraHeaders;
+}
+
+function openSettings() {
+    populateSettingsForm();
+    if (settingsModal) settingsModal.classList.remove('hidden');
+    if (settingsModal) settingsModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeSettings() {
+    if (settingsModal) settingsModal.classList.add('hidden');
+    if (settingsModal) settingsModal.setAttribute('aria-hidden', 'true');
+}
+
+function resetSettingsToDefault() {
+    settings = { ...DEFAULT_SETTINGS };
+    saveSettings();
+    applySettingsToUI();
+    populateSettingsForm();
+    showMessage('Settings reset to defaults.', 'info');
+}
+
+function handleSettingsSubmit(event) {
+    event.preventDefault();
+    if (!settingsForm) return;
+
+    const formData = new FormData(settingsForm);
+    const nextSettings = {
+        apiBase: getTrimmedValue(formData, 'apiBase', DEFAULT_SETTINGS.apiBase),
+        analyzeApiKey: getTrimmedValue(formData, 'analyzeApiKey'),
+        googleClientId: getTrimmedValue(formData, 'googleClientId'),
+        googleClientSecret: getTrimmedValue(formData, 'googleClientSecret'),
+        googleApiKey: getTrimmedValue(formData, 'googleApiKey'),
+        extraHeaders: {}
+    };
+
+    const extraHeadersText = getTrimmedValue(formData, 'extraHeaders');
+    if (extraHeadersText) {
+        try {
+            const parsed = JSON.parse(extraHeadersText);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                nextSettings.extraHeaders = parsed;
+            } else {
+                throw new Error('Extra headers must be a JSON object.');
+            }
+        } catch (error) {
+            showMessage(`Could not save extra headers: ${error.message}`, 'error');
+            return;
+        }
+    }
+
+    settings = nextSettings;
+    saveSettings();
+    applySettingsToUI();
+    closeSettings();
+    showMessage('Settings saved successfully.', 'success');
+}
+
+function buildHeaders({ includeAnalyzeKey = false, includeGoogleKey = false } = {}) {
+    const headers = { ...(settings.extraHeaders || {}) };
+
+    if (includeAnalyzeKey && settings.analyzeApiKey) {
+        headers['X-Api-Key'] = settings.analyzeApiKey;
+    }
+
+    if (includeGoogleKey && settings.googleApiKey) {
+        headers['X-Google-Api-Key'] = settings.googleApiKey;
+    }
+
+    return headers;
+}
+
+function getTrimmedValue(formData, key, fallback = '') {
+    const value = formData.get(key);
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed || fallback;
+    }
+    return fallback;
+}
+
+function buildCalendarSettingsPayload() {
+    const payload = {};
+    if (settings.googleClientId) payload.clientId = settings.googleClientId;
+    if (settings.googleClientSecret) payload.clientSecret = settings.googleClientSecret;
+    if (settings.googleApiKey) payload.apiKey = settings.googleApiKey;
+    return Object.keys(payload).length > 0 ? payload : null;
+}
+
+function ensureGoogleMessageListener() {
+    if (googleMessageListenerRegistered) return;
+    window.addEventListener('message', handleGoogleAuthMessage);
+    googleMessageListenerRegistered = true;
+}
+
+function handleGoogleAuthMessage(event) {
+    if (event.origin !== window.location.origin) return;
+    if (!event.data || typeof event.data !== 'object') return;
+
+    if (event.data.type === 'GOOGLE_AUTH_CODE' && event.data.code) {
+        if (googleAuthPopup && !googleAuthPopup.closed) {
+            googleAuthPopup.close();
+        }
+        googleAuthPopup = null;
+        if (googleAuthInterval) {
+            clearInterval(googleAuthInterval);
+            googleAuthInterval = null;
+        }
+        exchangeCodeForTokens(event.data.code);
+    }
+}
+
+async function extractJson(response) {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        throw new Error(`Invalid JSON response: ${error.message}`);
+    }
 }
 
 function handleDragOver(e) {
@@ -81,10 +294,14 @@ function handleFile(file) {
         showMessage('File size must be less than 10MB.', 'error');
         return;
     }
-    
+
     selectedFile = file;
     displayPreview(file);
-    analyzeBtn.disabled = false;
+    updateAnalyzeButtonState();
+}
+
+function updateAnalyzeButtonState() {
+    analyzeBtn.disabled = !selectedFile;
 }
 
 function displayPreview(file) {
@@ -111,15 +328,16 @@ async function analyzeCalendar() {
     try {
         const formData = new FormData();
         formData.append('calendar', selectedFile);
-        
-        const response = await fetch(`${API_BASE}/analyze-calendar`, {
+
+        const response = await fetch(`${apiBase}/analyze-calendar`, {
             method: 'POST',
+            headers: buildHeaders({ includeAnalyzeKey: true }),
             body: formData
         });
-        
-        const data = await response.json();
+
+        const data = await extractJson(response);
         hideLoading();
-        
+
         if (!response.ok) {
             throw new Error(data.error || 'Failed to analyze calendar');
         }
@@ -186,42 +404,66 @@ function displayEvents() {
 
 async function authenticateGoogle() {
     try {
+        ensureGoogleMessageListener();
         showLoading('Connecting to Google Calendar...');
-        
-        const response = await fetch(`${API_BASE}/auth/google`);
-        const data = await response.json();
-        
+
+        const calendarSettings = buildCalendarSettingsPayload();
+        const url = new URL(`${apiBase}/auth/google`);
+
+        if (calendarSettings && calendarSettings.clientId) {
+            url.searchParams.set('client_id', calendarSettings.clientId);
+        }
+        if (calendarSettings && calendarSettings.apiKey) {
+            url.searchParams.set('api_key', calendarSettings.apiKey);
+        }
+
+        const response = await fetch(url.toString(), {
+            headers: buildHeaders({ includeGoogleKey: true })
+        });
+        const data = await extractJson(response);
+
         hideLoading();
-        
+
         if (!response.ok) {
             throw new Error(data.error || 'Failed to get auth URL');
         }
-        
+
         // Open popup for OAuth
-        const popup = window.open(data.authUrl, 'google-auth', 'width=500,height=600');
-        
-        // Listen for popup to close or message
-        const checkClosed = setInterval(() => {
-            if (popup.closed) {
-                clearInterval(checkClosed);
-                // Check for auth code in URL parameters
+        if (googleAuthPopup && !googleAuthPopup.closed) {
+            googleAuthPopup.close();
+        }
+
+        googleAuthPopup = window.open(data.authUrl, 'google-auth', 'width=500,height=600');
+
+        if (!googleAuthPopup) {
+            throw new Error('Popup blocked. Please allow popups for this site.');
+        }
+
+        if (googleAuthInterval) {
+            clearInterval(googleAuthInterval);
+        }
+
+        googleAuthInterval = setInterval(() => {
+            if (!googleAuthPopup || googleAuthPopup.closed) {
+                if (googleAuthPopup && googleAuthPopup.closed) {
+                    googleAuthPopup = null;
+                }
+                clearInterval(googleAuthInterval);
+                googleAuthInterval = null;
                 checkAuthStatus();
             }
         }, 1000);
-        
-        // Listen for messages from popup
-        window.addEventListener('message', async (event) => {
-            if (event.origin !== window.location.origin) return;
-            
-            if (event.data.type === 'GOOGLE_AUTH_CODE') {
-                popup.close();
-                clearInterval(checkClosed);
-                await exchangeCodeForTokens(event.data.code);
-            }
-        });
-        
+
     } catch (error) {
         hideLoading();
+        if (googleAuthInterval) {
+            clearInterval(googleAuthInterval);
+            googleAuthInterval = null;
+        }
+        if (googleAuthPopup && !googleAuthPopup.closed) {
+            googleAuthPopup.close();
+        }
+        googleAuthPopup = null;
         console.error('Auth error:', error);
         showMessage(`Authentication error: ${error.message}`, 'error');
     }
@@ -231,15 +473,24 @@ async function exchangeCodeForTokens(code) {
     try {
         showLoading('Completing authentication...');
         
-        const response = await fetch(`${API_BASE}/auth/google/callback`, {
+        const calendarSettings = buildCalendarSettingsPayload();
+        const headers = buildHeaders({ includeGoogleKey: true });
+        headers['Content-Type'] = 'application/json';
+
+        const payload = { code };
+        if (calendarSettings) {
+            payload.calendarSettings = calendarSettings;
+        }
+
+        const response = await fetch(`${apiBase}/auth/google/callback`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
+            headers,
+            body: JSON.stringify(payload)
         });
-        
-        const data = await response.json();
+
+        const data = await extractJson(response);
         hideLoading();
-        
+
         if (!response.ok) {
             throw new Error(data.error || 'Failed to authenticate');
         }
@@ -261,10 +512,11 @@ function showAuthSuccess() {
 }
 
 function checkAuthStatus() {
+    ensureGoogleMessageListener();
     // Check URL parameters for auth code
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
-    
+
     if (code) {
         exchangeCodeForTokens(code);
         // Clean up URL
@@ -286,18 +538,28 @@ async function createGoogleCalendarEvents() {
     showLoading('Creating events in Google Calendar...');
     
     try {
-        const response = await fetch(`${API_BASE}/create-events`, {
+        const headers = buildHeaders({ includeGoogleKey: true });
+        headers['Content-Type'] = 'application/json';
+
+        const payload = {
+            events: extractedEvents,
+            accessToken
+        };
+
+        const calendarSettings = buildCalendarSettingsPayload();
+        if (calendarSettings) {
+            payload.calendarSettings = calendarSettings;
+        }
+
+        const response = await fetch(`${apiBase}/create-events`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                events: extractedEvents,
-                accessToken
-            })
+            headers,
+            body: JSON.stringify(payload)
         });
-        
-        const data = await response.json();
+
+        const data = await extractJson(response);
         hideLoading();
-        
+
         if (!response.ok) {
             throw new Error(data.error || 'Failed to create events');
         }
@@ -367,7 +629,7 @@ function startOver() {
     `;
     
     // Reset buttons
-    analyzeBtn.disabled = true;
+    updateAnalyzeButtonState();
     createEventsBtn.disabled = true;
     authStatus.innerHTML = '';
     authBtn.textContent = 'Connect Google Calendar';
