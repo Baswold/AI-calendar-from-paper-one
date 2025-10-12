@@ -9,8 +9,24 @@
 <body>
     <div class="container">
         <header>
-            <h1>📅 Calendar Photo Converter</h1>
-            <p>Upload a photo of your paper calendar and convert events to Google Calendar</p>
+            <div class="header-top">
+                <div class="header-copy">
+                    <h1>
+                        <span class="title-icon" aria-hidden="true">📅</span>
+                        <span class="title-text">Calendar Photo Converter</span>
+                    </h1>
+                    <p>Upload a photo of your paper calendar and convert events to Google Calendar</p>
+                </div>
+                <div class="header-actions">
+                    <button id="settings-btn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="settings-modal" aria-label="Open settings">
+                        ⚙️
+                    </button>
+                </div>
+            </div>
+            <div class="header-meta">
+                <span class="meta-label">API base:</span>
+                <span id="api-base-display" class="meta-value"></span>
+            </div>
         </header>
 
         <div id="upload-section" class="section">
@@ -51,6 +67,63 @@
         <div id="loading" class="loading hidden">
             <div class="spinner"></div>
             <p id="loading-message">Analyzing your calendar...</p>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="modal-overlay" id="settings-overlay" data-close="settings"></div>
+        <div class="modal-dialog">
+            <header class="modal-header">
+                <h2 id="settings-title">Settings</h2>
+                <button class="icon-btn" type="button" id="settings-close-btn" aria-label="Close settings">✖️</button>
+            </header>
+            <form id="settings-form" class="modal-body">
+                <fieldset class="settings-group">
+                    <legend>Server</legend>
+                    <label class="form-label" for="settings-api-base">API Base URL</label>
+                    <input id="settings-api-base" name="apiBase" type="url" placeholder="https://example.com" autocomplete="off">
+                    <p class="help-text">All requests will be sent to this base URL. Defaults to the current site if left blank.</p>
+                </fieldset>
+
+                <fieldset class="settings-group">
+                    <legend>Calendar Analysis</legend>
+                    <label class="form-label" for="settings-analyze-key">Analysis API Key</label>
+                    <input id="settings-analyze-key" name="analyzeApiKey" type="password" placeholder="Paste your OCR/LLM key" autocomplete="off">
+                    <p class="help-text">Used as the <code>X-Api-Key</code> header when sending calendar images for analysis.</p>
+                </fieldset>
+
+                <fieldset class="settings-group">
+                    <legend>Google Calendar</legend>
+                    <div class="input-grid">
+                        <div>
+                            <label class="form-label" for="settings-google-client-id">Client ID</label>
+                            <input id="settings-google-client-id" name="googleClientId" type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off">
+                        </div>
+                        <div>
+                            <label class="form-label" for="settings-google-client-secret">Client Secret</label>
+                            <input id="settings-google-client-secret" name="googleClientSecret" type="password" placeholder="Keep this safe" autocomplete="off">
+                        </div>
+                    </div>
+                    <label class="form-label" for="settings-google-api-key">Google API Key</label>
+                    <input id="settings-google-api-key" name="googleApiKey" type="password" placeholder="Optional calendar API key" autocomplete="off">
+                    <p class="help-text">These credentials are passed to the backend when requesting OAuth links and creating events.</p>
+                </fieldset>
+
+                <fieldset class="settings-group">
+                    <legend>Advanced</legend>
+                    <label class="form-label" for="settings-extra-headers">Extra Headers (JSON)</label>
+                    <textarea id="settings-extra-headers" name="extraHeaders" placeholder='{"X-Custom":"value"}' rows="4"></textarea>
+                    <p class="help-text">Provide additional headers as JSON to include with every network request.</p>
+                </fieldset>
+
+                <footer class="modal-footer">
+                    <button type="button" id="settings-reset-btn" class="btn subtle">Reset</button>
+                    <div class="modal-actions">
+                        <button type="button" id="settings-cancel-btn" class="btn secondary">Cancel</button>
+                        <button type="submit" class="btn primary">Save Settings</button>
+                    </div>
+                </footer>
+            </form>
         </div>
     </div>
 
