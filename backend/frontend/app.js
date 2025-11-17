@@ -5,10 +5,52 @@ class CalendarPhotoConverter {
         this.extractedEvents = [];
         this.isProcessing = false;
         this.isAuthorized = false;
-        
+
+        // Configure API base URL dynamically based on current origin
+        this.apiBase = this.loadApiBase();
+
         this.initializeElements();
         this.attachEventListeners();
         this.showSection('uploadSection');
+
+        // Log configuration on startup
+        console.log('Calendar Photo Converter initialized');
+        console.log('API Base URL:', this.apiBase);
+    }
+
+    /**
+     * Load API base URL from localStorage or use current origin as default
+     * This allows the frontend to work regardless of which port the server is running on
+     */
+    loadApiBase() {
+        try {
+            const savedApiBase = localStorage.getItem('calendar-api-base');
+            if (savedApiBase) {
+                console.log('Using saved API base from localStorage:', savedApiBase);
+                return savedApiBase;
+            }
+        } catch (error) {
+            console.warn('Could not load saved API base:', error);
+        }
+
+        // Default to current origin (e.g., http://localhost:8000)
+        const defaultBase = window.location.origin;
+        console.log('Using default API base (current origin):', defaultBase);
+        return defaultBase;
+    }
+
+    /**
+     * Update the API base URL and save to localStorage
+     * @param {string} newBase - New API base URL
+     */
+    setApiBase(newBase) {
+        try {
+            this.apiBase = newBase;
+            localStorage.setItem('calendar-api-base', newBase);
+            console.log('API base updated to:', newBase);
+        } catch (error) {
+            console.error('Failed to save API base:', error);
+        }
     }
 
     initializeElements() {
@@ -18,23 +60,33 @@ class CalendarPhotoConverter {
         this.fileList = document.getElementById('fileList');
         this.processButton = document.getElementById('processButton');
         this.statusMessage = document.getElementById('statusMessage');
-        
+
         // Progress elements
         this.progressFill = document.getElementById('progressFill');
         this.progressText = document.getElementById('progressText');
-        
+
         // Events table elements
         this.eventsTableBody = document.getElementById('eventsTableBody');
         this.selectAllCheckbox = document.getElementById('selectAllCheckbox');
         this.selectAllButton = document.getElementById('selectAllButton');
         this.deselectAllButton = document.getElementById('deselectAllButton');
         this.addToCalendarButton = document.getElementById('addToCalendarButton');
-        
+
         // OAuth elements
         this.authorizeButton = document.getElementById('authorizeButton');
-        
+
         // Other buttons
         this.startOverButton = document.getElementById('startOverButton');
+
+        // Settings elements
+        this.settingsButton = document.getElementById('settingsButton');
+        this.settingsModal = document.getElementById('settingsModal');
+        this.settingsOverlay = document.getElementById('settingsOverlay');
+        this.closeSettingsButton = document.getElementById('closeSettingsButton');
+        this.settingsForm = document.getElementById('settingsForm');
+        this.apiBaseInput = document.getElementById('apiBaseInput');
+        this.currentApiDisplay = document.getElementById('currentApiDisplay');
+        this.resetApiButton = document.getElementById('resetApiButton');
     }
 
     attachEventListeners() {
@@ -43,24 +95,38 @@ class CalendarPhotoConverter {
         this.uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
         this.uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
         this.uploadArea.addEventListener('drop', this.handleDrop.bind(this));
-        
+
         // File input
         this.fileInput.addEventListener('change', this.handleFileSelect.bind(this));
-        
+
         // Process button
         this.processButton.addEventListener('click', this.processImages.bind(this));
-        
+
         // Events table controls
         this.selectAllCheckbox.addEventListener('change', this.handleSelectAll.bind(this));
         this.selectAllButton.addEventListener('click', () => this.setAllCheckboxes(true));
         this.deselectAllButton.addEventListener('click', () => this.setAllCheckboxes(false));
         this.addToCalendarButton.addEventListener('click', this.addEventsToCalendar.bind(this));
-        
+
         // OAuth
         this.authorizeButton.addEventListener('click', this.authorizeGoogleCalendar.bind(this));
-        
+
         // Start over
         this.startOverButton.addEventListener('click', this.startOver.bind(this));
+
+        // Settings modal
+        this.settingsButton.addEventListener('click', this.openSettings.bind(this));
+        this.closeSettingsButton.addEventListener('click', this.closeSettings.bind(this));
+        this.settingsOverlay.addEventListener('click', this.closeSettings.bind(this));
+        this.settingsForm.addEventListener('submit', this.saveSettings.bind(this));
+        this.resetApiButton.addEventListener('click', this.resetApiToDefault.bind(this));
+
+        // Escape key to close settings
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.settingsModal.classList.contains('hidden')) {
+                this.closeSettings();
+            }
+        });
     }
 
     // File handling methods
@@ -179,26 +245,34 @@ class CalendarPhotoConverter {
             const formData = new FormData();
             formData.append('calendar', file);
 
+            // Construct API URL using dynamic base
+            const apiUrl = `${this.apiBase}/api/analyze-calendar`;
+            console.log('Calling API:', apiUrl);
+
             // Make API call to backend
-            const response = await fetch('http://localhost:3001/api/analyze-calendar', {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 body: formData
             });
 
             if (!response.ok) {
-                throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+                const errorText = await response.text().catch(() => 'No error details available');
+                throw new Error(`API call failed: ${response.status} ${response.statusText}. Details: ${errorText}`);
             }
 
             const result = await response.json();
-            
+            console.log('API response:', result);
+
             if (result.events && result.events.length > 0) {
                 // Process and format the events from Claude Vision API
+                console.log(`Successfully extracted ${result.events.length} events from ${file.name}`);
                 return result.events.map(event => ({
                     id: Date.now() + Math.random(),
                     title: event.title || 'Untitled Event',
                     date: event.date || new Date().toISOString().split('T')[0],
                     time: event.startTime ? this.formatTime(event.startTime, event.endTime) : null,
                     description: event.description || '',
+                    location: event.location || '',
                     sourceImage: file.name,
                     selected: true
                 }));
@@ -209,6 +283,12 @@ class CalendarPhotoConverter {
             }
         } catch (error) {
             console.error('Error calling Claude Vision API:', error);
+            console.error('API Base URL was:', this.apiBase);
+            console.error('Full error details:', {
+                message: error.message,
+                stack: error.stack
+            });
+
             // Fallback to mock events on error
             console.warn('API call failed, using mock data for demo');
             return this.generateMockEvents(file.name);
@@ -415,6 +495,63 @@ class CalendarPhotoConverter {
         } catch (error) {
             console.error('Authorization error:', error);
             this.showStatus('Authorization failed. Please try again.', 'error');
+        }
+    }
+
+    // Settings methods
+    openSettings() {
+        this.apiBaseInput.value = this.apiBase !== window.location.origin ? this.apiBase : '';
+        this.updateCurrentApiDisplay();
+        this.settingsModal.classList.remove('hidden');
+        this.settingsOverlay.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+
+    closeSettings() {
+        this.settingsModal.classList.add('hidden');
+        this.settingsOverlay.classList.add('hidden');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+
+    saveSettings(e) {
+        e.preventDefault();
+
+        const newApiBase = this.apiBaseInput.value.trim();
+
+        if (newApiBase) {
+            // Validate URL format
+            try {
+                new URL(newApiBase);
+                this.setApiBase(newApiBase);
+                this.showStatus(`API base updated to: ${newApiBase}`, 'success');
+            } catch (error) {
+                this.showStatus('Invalid URL format. Please enter a valid URL.', 'error');
+                return;
+            }
+        } else {
+            // Use default (current origin)
+            const defaultBase = window.location.origin;
+            this.setApiBase(defaultBase);
+            localStorage.removeItem('calendar-api-base'); // Clear saved preference
+            this.showStatus('API base reset to current origin', 'success');
+        }
+
+        this.updateCurrentApiDisplay();
+        this.closeSettings();
+    }
+
+    resetApiToDefault() {
+        this.apiBaseInput.value = '';
+        const defaultBase = window.location.origin;
+        this.setApiBase(defaultBase);
+        localStorage.removeItem('calendar-api-base');
+        this.updateCurrentApiDisplay();
+        this.showStatus('API base reset to default (current origin)', 'info');
+    }
+
+    updateCurrentApiDisplay() {
+        if (this.currentApiDisplay) {
+            this.currentApiDisplay.textContent = this.apiBase;
         }
     }
 
