@@ -19,9 +19,16 @@ function sanitizeString(input) {
   }
 
   return input
-    .replace(/[<>]/g, '') // Remove angle brackets
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags and content
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove style tags and content
+    .replace(/<[^>]+>/g, '') // Remove all HTML tags
     .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
+    .replace(/on\w+\s*=\s*["']?[^"'\s]*["']?/gi, '') // Remove event handlers like onclick="..."
+    .replace(/&lt;/g, '') // Remove HTML entities
+    .replace(/&gt;/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
     .trim();
 }
 
@@ -89,8 +96,15 @@ function validateDate(dateString) {
   }
 
   // Validate actual date
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+
+  // Check if the date is valid and matches the input
+  // This catches cases like Feb 30 which JS would convert to March 2
+  if (isNaN(date.getTime()) ||
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day) {
     return {
       isValid: false,
       sanitized: null,
@@ -99,7 +113,6 @@ function validateDate(dateString) {
   }
 
   // Check for reasonable date range (1900-2100)
-  const year = date.getFullYear();
   if (year < 1900 || year > 2100) {
     return {
       isValid: false,
